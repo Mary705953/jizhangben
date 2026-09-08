@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="私人记账本">
+<meta name="theme-color" content="#4f7cff">
+<meta name="description" content="纯本地个人记账应用，数据不上传">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>私人记账本</title>
+<style>
+:root{
+  --bg:#f4f6f9;--card:#ffffff;--text:#1f2937;--text-sub:#6b7280;--border:#e5e7eb;
+  --primary:#4f7cff;--income:#34c759;--expense:#ff5b5b;--transfer:#ff9f40;--asset:#00c7be;--liability:#af52de;
+  --shadow:0 2px 12px rgba(0,0,0,.06);--nav-bg:#ffffff;--input-bg:#f3f4f6;--tag-bg:#eef2ff;--tag-text:#4f7cff;
+}
+[data-theme="dark"]{
+  --bg:#0f1115;--card:#1a1d24;--text:#e6e8eb;--text-sub:#8a9099;--border:#2a2f38;
+  --primary:#6b8fff;--income:#34c759;--expense:#ff6b6b;--transfer:#ffb05a;--asset:#3dd6cf;--liability:#c275e0;
+  --shadow:0 2px 12px rgba(0,0,0,.4);--nav-bg:#1a1d24;--input-bg:#252932;--tag-bg:#1e2436;--tag-text:#8ba6ff;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.5;transition:background .25s,color .25s;overflow:hidden;}
+input,select,textarea,button{font-family:inherit;font-size:inherit;color:inherit;}
+button{cursor:pointer;border:none;background:none;}
+a{color:inherit;text-decoration:none;}
+.app{display:flex;flex-direction:column;height:100vh;max-width:520px;margin:0 auto;position:relative;background:var(--bg);}
+.app-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0;gap:8px;}
+.app-header .ledger-select{display:flex;align-items:center;gap:4px;background:var(--input-bg);padding:5px 10px;border-radius:8px;font-size:14px;font-weight:600;max-width:50%;overflow:hidden;}
+.app-header .ledger-select .icon{font-size:16px;}
+.app-header .ledger-select select{background:none;border:none;outline:none;font-size:14px;font-weight:600;color:var(--text);max-width:90px;}
+.app-header h1{font-size:17px;font-weight:600;flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.theme-btn,.back-btn{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--input-bg);font-size:18px;transition:transform .2s;flex-shrink:0;}
+.back-btn{display:none;border-radius:8px;}
+.back-btn.show{display:flex;}
+.theme-btn:active,.back-btn:active{transform:scale(.9);}
+.app-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 14px 84px;}
+.page{display:none;animation:fadeIn .25s;}
+.page.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow);}
+.summary-card{background:linear-gradient(135deg,var(--primary),#6b8fff);color:#fff;border-radius:16px;padding:20px 18px;margin-bottom:14px;box-shadow:0 4px 16px rgba(79,124,255,.3);}
+.summary-card .month-label{font-size:13px;opacity:.85;}
+.summary-card .balance{font-size:32px;font-weight:700;margin:6px 0 14px;letter-spacing:.5px;}
+.summary-card .balance::before{content:'¥';font-size:19px;margin-right:2px;font-weight:400;}
+.summary-card .row{display:flex;gap:12px;}
+.summary-card .row .item{flex:1;background:rgba(255,255,255,.15);border-radius:10px;padding:10px 12px;}
+.summary-card .row .item .lbl{font-size:12px;opacity:.85;}
+.summary-card .row .item .val{font-size:17px;font-weight:600;margin-top:2px;}
+.summary-card .row .item .val::before{content:'¥';font-size:12px;margin-right:1px;font-weight:400;}
+.report-btn{display:block;text-align:center;background:rgba(255,255,255,.2);color:#fff;border-radius:10px;padding:9px;margin-top:12px;font-size:13px;font-weight:500;}
+.report-btn:active{background:rgba(255,255,255,.3);}
+.assets-card .assets-total{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;}
+.assets-card .assets-total .lbl{font-size:13px;color:var(--text-sub);}
+.assets-card .assets-total .val{font-size:21px;font-weight:700;color:var(--asset);}
+.assets-card .assets-total .val::before{content:'¥';font-size:13px;margin-right:2px;}
+.assets-card .assets-list{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;}
+.assets-card .assets-list .chip{flex:0 0 auto;background:var(--input-bg);border-radius:8px;padding:8px 10px;min-width:90px;}
+.assets-card .assets-list .chip .n{font-size:12px;color:var(--text-sub);}
+.assets-card .assets-list .chip .v{font-size:14px;font-weight:600;margin-top:2px;}
+.section-title{font-size:15px;font-weight:600;margin:4px 4px 12px;display:flex;align-items:center;justify-content:space-between;}
+.section-title .sub{font-size:12px;color:var(--text-sub);font-weight:400;}
+.section-title .sub.link{color:var(--primary);cursor:pointer;}
+.chart-toggle{display:flex;background:var(--input-bg);border-radius:8px;padding:2px;font-size:11px;}
+.chart-toggle button{padding:4px 10px;border-radius:6px;color:var(--text-sub);}
+.chart-toggle button.active{background:var(--primary);color:#fff;}
+.pie-wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.pie-canvas-box{width:140px;height:140px;flex-shrink:0;position:relative;}
+.pie-canvas-box canvas{width:100%;height:100%;}
+.pie-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+.pie-center .lbl{font-size:11px;color:var(--text-sub);}
+.pie-center .val{font-size:15px;font-weight:700;}
+.pie-legend{flex:1;min-width:140px;}
+.pie-legend .li{display:flex;align-items:center;justify-content:space-between;padding:5px 0;font-size:13px;cursor:pointer;}
+.pie-legend .li .left{display:flex;align-items:center;gap:6px;}
+.pie-legend .li .dot{width:9px;height:9px;border-radius:2px;flex-shrink:0;}
+.pie-legend .li .amt{color:var(--text-sub);}
+.pie-legend .li:active{background:var(--input-bg);}
+.empty-tip{color:var(--text-sub);font-size:13px;text-align:center;padding:18px 0;}
+.bill-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;}
+.bill-item:last-child{border-bottom:none;}
+.bill-item .icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;background:var(--input-bg);}
+.bill-item .info{flex:1;min-width:0;}
+.bill-item .info .cat{font-size:14px;font-weight:500;}
+.bill-item .info .meta{font-size:12px;color:var(--text-sub);margin-top:1px;}
+.bill-item .info .meta .tag{margin-left:4px;}
+.bill-item .amt{font-size:15px;font-weight:600;white-space:nowrap;}
+.bill-item .amt.income{color:var(--income);}
+.bill-item .amt.expense{color:var(--expense);}
+.bill-item .amt.transfer{color:var(--transfer);}
+.app-nav{position:absolute;left:0;right:0;bottom:0;display:flex;background:var(--nav-bg);border-top:1px solid var(--border);padding:6px 0 calc(6px + env(safe-area-inset-bottom));z-index:10;}
+.app-nav .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:5px 0;font-size:10px;color:var(--text-sub);transition:color .2s;}
+.app-nav .nav-btn .icon{font-size:19px;}
+.app-nav .nav-btn.active{color:var(--primary);}
+.type-switch{display:flex;background:var(--input-bg);border-radius:10px;padding:3px;margin-bottom:14px;}
+.type-switch button{flex:1;padding:8px;border-radius:8px;font-size:14px;color:var(--text-sub);transition:all .2s;}
+.type-switch button.active.income{background:var(--income);color:#fff;}
+.type-switch button.active.expense{background:var(--expense);color:#fff;}
+.type-switch button.active.transfer{background:var(--transfer);color:#fff;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:13px;color:var(--text-sub);margin-bottom:6px;}
+.field input,.field select,.field textarea{width:100%;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;padding:11px 12px;font-size:15px;color:var(--text);outline:none;transition:border-color .2s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary);}
+.field textarea{resize:none;height:70px;}
+.amount-input{font-size:24px!important;font-weight:700;text-align:center;}
+.amount-input.expense{color:var(--expense);}
+.amount-input.income{color:var(--income);}
+.amount-input.transfer{color:var(--transfer);}
+.cat-cascade,.acct-pair,.dual-field{display:flex;gap:8px;align-items:center;}
+.cat-cascade select,.acct-pair select,.dual-field select,.dual-field input{flex:1;min-width:0;}
+.cat-cascade select:disabled,.acct-pair select:disabled{opacity:.5;}
+.acct-pair .arrow{flex:0 0 auto;color:var(--text-sub);font-size:18px;}
+.datalist-input{position:relative;}
+.datalist-input input{width:100%;}
+.datalist-input .suggest{position:absolute;left:0;right:0;top:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;max-height:160px;overflow-y:auto;z-index:5;display:none;box-shadow:var(--shadow);}
+.datalist-input .suggest.show{display:block;}
+.datalist-input .suggest .item{padding:8px 12px;font-size:13px;cursor:pointer;}
+.datalist-input .suggest .item:active,.datalist-input .suggest .item:hover{background:var(--input-bg);}
+.tag-input-wrap{display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;}
+.tag-input-wrap input{flex:1;min-width:80px;background:none;border:none;outline:none;padding:4px;}
+.tag-chip{display:inline-flex;align-items:center;gap:4px;background:var(--tag-bg);color:var(--tag-text);padding:4px 8px;border-radius:6px;font-size:12px;}
+.tag-chip .x{cursor:pointer;opacity:.7;}
+.form-actions{display:flex;gap:10px;margin-top:18px;}
+.btn{flex:1;padding:12px;border-radius:10px;font-size:15px;font-weight:500;transition:opacity .2s;}
+.btn:active{opacity:.8;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-danger{background:var(--expense);color:#fff;}
+.btn-ghost{background:var(--input-bg);color:var(--text);}
+.btn:disabled{opacity:.5;}
+.filter-bar{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+.filter-bar input,.filter-bar select{flex:1;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:13px;}
+.filter-bar select{flex:0 0 auto;max-width:48%;}
+.filter-bar .btn{flex:0 0 auto;padding:8px 12px;font-size:13px;}
+.list-group-title{font-size:13px;color:var(--text-sub);font-weight:600;margin:12px 2px 6px;display:flex;justify-content:space-between;}
+.cat-section,.acct-section{margin-bottom:18px;}
+.cat-section h3,.acct-section .section-title{font-size:14px;margin-bottom:10px;}
+.cat-section h3 .badge{font-size:12px;color:var(--text-sub);font-weight:400;}
+.cat-search{margin-bottom:10px;}
+.cat-search input{width:100%;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:13px;outline:none;}
+.cat-search input:focus{border-color:var(--primary);}
+.cat-filter-tip{font-size:12px;color:var(--text-sub);padding:4px 2px 8px;display:flex;align-items:center;justify-content:space-between;}
+.cat-filter-tip .clear-link{color:var(--primary);cursor:pointer;}
+.cat-hit{background:var(--tag-bg);color:var(--tag-text);border-radius:3px;padding:0 2px;}
+.cat-l1-block,.acct-l1-block{background:var(--input-bg);border-radius:10px;margin-bottom:8px;overflow:hidden;}
+.cat-l1-row,.acct-l1-row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border);}
+.cat-l1-row .name,.acct-l1-row .name{font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden;}
+.cat-l1-row .ops,.cat-l2-row .ops,.acct-l1-row .ops,.acct-l2-row .ops{display:flex;gap:4px;flex-shrink:0;}
+.cat-l1-row .op,.cat-l2-row .op,.acct-l1-row .op,.acct-l2-row .op{font-size:12px;padding:4px 8px;border-radius:6px;background:var(--card);color:var(--text-sub);}
+.cat-l1-row .op.edit,.cat-l2-row .op.edit,.acct-l1-row .op.edit,.acct-l2-row .op.edit{color:var(--primary);}
+.cat-l1-row .op.del,.cat-l2-row .op.del,.acct-l1-row .op.del,.acct-l2-row .op.del{color:var(--expense);}
+.cat-l1-row .op.add-l2,.acct-l1-row .op.add-l2{color:var(--income);}
+.cat-l2-row .op.view,.acct-l1-row .op.view,.acct-l2-row .op.view{color:var(--primary);}
+.cat-l2-list,.acct-l2-list{padding:4px 12px 8px;}
+.cat-l2-row,.acct-l2-row{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;font-size:13px;border-bottom:1px dashed var(--border);}
+.cat-l2-row:last-child,.acct-l2-row:last-child{border-bottom:none;}
+.cat-l2-row .name,.acct-l2-row .name{display:flex;align-items:center;gap:6px;color:var(--text);flex:1;min-width:0;}
+.cat-l2-row .name::before,.acct-l2-row .name::before{content:'├';color:var(--text-sub);flex-shrink:0;}
+.cat-l2-empty,.acct-l2-empty{font-size:12px;color:var(--text-sub);padding:6px 8px;font-style:italic;}
+.acct-l1-row .bal,.acct-l2-row .bal{font-size:13px;color:var(--text-sub);margin:0 8px;flex-shrink:0;}
+.acct-l1-row .bal.asset,.acct-l2-row .bal.asset{color:var(--asset);font-weight:600;}
+.acct-l1-row .bal.liability,.acct-l2-row .bal.liability{color:var(--liability);font-weight:600;}
+.acct-code{font-size:11px;color:var(--text-sub);font-weight:400;}
+.acct-asset-tag,.acct-type-tag{font-size:10px;padding:1px 5px;border-radius:4px;color:#fff;}
+.acct-asset-tag{background:var(--asset);}
+.acct-asset-tag.no{background:var(--text-sub);opacity:.7;}
+.acct-type-tag{background:var(--liability);}
+.acct-type-tag.asset{background:var(--asset);}
+/* 账户页 V5：顶部净资产横幅 */
+.acct-banner{position:relative;border-radius:16px;overflow:hidden;margin-bottom:14px;height:170px;}
+.acct-banner-bg{position:absolute;inset:0;background-size:cover;background-position:center;transition:background-image .4s;}
+/* 3 套预设皮肤：纯 CSS 渐变实现，不联网 */
+.acct-banner-bg.skin-0{background:linear-gradient(135deg,#1e3c72 0%,#2a5298 50%,#4facfe 100%);}
+.acct-banner-bg.skin-1{background:linear-gradient(135deg,#0f2027 0%,#203a43 50%,#2c5364 100%);}
+.acct-banner-bg.skin-2{background:linear-gradient(135deg,#42275a 0%,#734b6d 50%,#bdc3c7 100%);}
+.acct-banner-inner{position:relative;inset:0;height:100%;padding:20px 20px 14px;display:flex;flex-direction:column;justify-content:space-between;background:rgba(0,0,0,.18);color:#fff;}
+.acct-banner-top{display:flex;align-items:center;justify-content:space-between;}
+.acct-banner-top .lbl{font-size:13px;opacity:.85;}
+.acct-banner-actions{display:flex;gap:6px;}
+.banner-btn{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.22);color:#fff;font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;font-weight:300;}
+.banner-btn:active{transform:scale(.92);}
+.acct-banner-amt{display:flex;align-items:baseline;gap:8px;}
+.acct-banner-amt .amt{font-size:34px;font-weight:700;letter-spacing:.5px;}
+.acct-banner-amt .amt::before{content:'¥';font-size:18px;margin-right:2px;font-weight:400;}
+.eye-btn{background:none;border:none;color:#fff;font-size:18px;padding:4px;opacity:.9;}
+.eye-btn:active{transform:scale(.9);}
+.acct-banner-sub{font-size:12px;opacity:.85;display:flex;gap:10px;}
+.acct-banner-sub .sep{opacity:.5;}
+.acct-banner-dots{position:absolute;left:0;right:0;bottom:8px;display:flex;justify-content:center;gap:5px;}
+.acct-banner-dots .dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4);}
+.acct-banner-dots .dot.active{background:#fff;width:14px;border-radius:3px;}
+/* 更多菜单 */
+.acct-more-menu{position:absolute;top:60px;right:14px;background:var(--card);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:6px 0;z-index:20;display:none;min-width:140px;}
+.acct-more-menu.show{display:block;}
+.acct-more-menu .item{padding:10px 16px;font-size:13px;cursor:pointer;}
+.acct-more-menu .item:active,.acct-more-menu .item:hover{background:var(--input-bg);}
+/* 分组卡片 */
+.acct-group-card{background:var(--card);border-radius:14px;padding:12px 14px;margin-bottom:12px;box-shadow:var(--shadow);}
+.acct-group-head{display:flex;align-items:center;gap:8px;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:4px;}
+.acct-group-head .gname{font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px;flex:1;}
+.acct-group-head .gname[data-act]{cursor:pointer;}
+.acct-group-head .gname[data-act]:active{opacity:.7;}
+.acct-group-head .gicon{font-size:16px;}
+.acct-group-head .gtotal{font-size:12px;color:var(--text-sub);}
+.acct-group-head .gops{display:flex;gap:4px;}
+.acct-group-head .gop{font-size:11px;padding:3px 7px;border-radius:5px;background:var(--input-bg);color:var(--text-sub);}
+.acct-group-head .gop.edit{color:var(--primary);}
+.acct-group-head .gop.del{color:var(--expense);}
+/* 折叠箭头 */
+.fold-arrow{display:inline-block;width:16px;text-align:center;font-size:12px;color:var(--text-sub);cursor:pointer;flex-shrink:0;user-select:none;transition:transform .15s;}
+.fold-arrow.no-child{visibility:hidden;cursor:default;}
+.fold-arrow[data-act="toggle"]:active{transform:scale(.8);}
+/* 账户条目(对齐截图) */
+.acct-item{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid var(--border);cursor:pointer;}
+.acct-item:last-child{border-bottom:none;}
+.acct-item .ai-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;color:#fff;}
+.acct-item .ai-info{flex:1;min-width:0;}
+.acct-item .ai-name{font-size:14px;font-weight:500;display:flex;align-items:center;gap:6px;}
+.acct-item .ai-name .grp-tag{font-size:10px;padding:1px 5px;border-radius:3px;background:#fff3e0;color:#ff9f40;border:1px solid #ffe0b2;}
+.acct-item .ai-code{font-size:11px;color:var(--text-sub);margin-top:1px;}
+.acct-item .ai-bal{font-size:15px;font-weight:600;flex-shrink:0;}
+.acct-item .ai-bal.asset{color:var(--text);}
+.acct-item .ai-bal.liability{color:var(--liability);}
+.acct-item .ai-arrow{color:var(--text-sub);font-size:14px;flex-shrink:0;margin-left:4px;}
+/* 子账户按钮 */
+.ai-actions{display:flex;align-items:center;gap:6px;margin-top:4px;}
+.ai-sub-btn{font-size:11px;color:var(--primary);background:var(--tag-bg);border:1px solid var(--border);border-radius:10px;padding:1px 8px;cursor:pointer;line-height:1.6;}
+.ai-sub-btn:active{transform:scale(.95);background:var(--primary);color:#fff;}
+.ai-act-btn{font-size:13px;width:24px;height:22px;border-radius:6px;background:var(--input-bg);color:var(--text-sub);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);}
+.ai-act-btn:active{transform:scale(.92);}
+.ai-act-btn.del{color:var(--expense);}
+.ai-act-btn.del:active{background:var(--expense);color:#fff;}
+.flow-sub-btn{font-size:12px;color:var(--primary);background:var(--tag-bg);border:1px solid var(--border);border-radius:10px;padding:3px 10px;cursor:pointer;margin-left:8px;vertical-align:middle;}
+.flow-sub-btn:active{transform:scale(.95);background:var(--primary);color:#fff;}
+/* 账户选择弹窗(新建/编辑) */
+.acct-modal-icon-pick{display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:var(--input-bg);border-radius:8px;max-height:120px;overflow-y:auto;}
+.acct-modal-icon-pick span{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;background:var(--card);}
+.acct-modal-icon-pick span.active{outline:2px solid var(--primary);}
+.acct-modal-color-pick{display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:var(--input-bg);border-radius:8px;}
+.acct-modal-color-pick span{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;}
+.acct-modal-color-pick span.active{border-color:#fff;box-shadow:0 0 0 2px var(--primary);}
+.acct-group-empty{font-size:13px;color:var(--text-sub);padding:14px 4px;text-align:center;}
+/* 分组管理弹窗(排序/编辑/删除) */
+.group-manage-list{max-height:320px;overflow-y:auto;}
+.group-manage-row{display:flex;align-items:center;gap:10px;padding:10px 6px;border-bottom:1px solid var(--border);transition:background .15s,opacity .15s;}
+.group-manage-row:last-child{border-bottom:none;}
+.group-manage-row .gm-drag{font-size:18px;color:var(--text-sub);cursor:grab;flex-shrink:0;width:20px;text-align:center;line-height:1;user-select:none;}
+.group-manage-row .gm-drag:active{cursor:grabbing;}
+.group-manage-row .gm-icon{font-size:20px;flex-shrink:0;width:28px;text-align:center;}
+.group-manage-row .gm-name{flex:1;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.group-manage-row .gm-ops{display:flex;gap:4px;flex-shrink:0;}
+.group-manage-row .gm-op{width:30px;height:30px;border-radius:8px;background:var(--input-bg);font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.group-manage-row .gm-op:active{transform:scale(.92);}
+.group-manage-row .gm-op.disabled{opacity:.3;pointer-events:none;}
+.group-manage-row .gm-op.edit{color:var(--primary);}
+.group-manage-row .gm-op.del{color:var(--expense);}
+/* 拖拽中状态：半透明 + 虚线边框 */
+.group-manage-row.dragging{opacity:.4;border:1px dashed var(--primary);border-radius:8px;}
+/* 拖拽悬停目标行：顶部蓝色指示条 */
+.group-manage-row.drag-over{background:var(--input-bg);box-shadow:inset 0 2px 0 0 var(--primary);border-radius:8px;}
+/* 自定义图标/颜色输入行 */
+.acct-custom-icon-row{display:flex;align-items:center;gap:8px;margin-top:8px;}
+.acct-custom-icon-row input{padding:6px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px;outline:none;font-size:14px;}
+.acct-custom-icon-row input:focus{border-color:var(--primary);}
+.acct-custom-icon-row .custom-icon-preview{font-size:18px;width:32px;height:32px;border-radius:8px;background:var(--card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.acct-custom-color-row{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;color:var(--text-sub);}
+.acct-custom-color-row input[type="color"]{flex-shrink:0;}
+.inline-edit{display:flex;gap:6px;padding:6px 8px;background:var(--card);border-radius:8px;margin:4px 8px 6px;}
+.inline-edit input{flex:1;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;outline:none;}
+.inline-edit input:focus{border-color:var(--primary);}
+.inline-edit button{padding:6px 10px;border-radius:6px;font-size:12px;}
+.inline-edit .ok{background:var(--primary);color:#fff;}
+.inline-edit .no{background:var(--input-bg);color:var(--text-sub);}
+.cat-add-l1-row,.acct-add-l1-row{display:flex;gap:8px;margin-top:10px;}
+.cat-add-l1-row input,.acct-add-l1-row input{flex:1;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:14px;outline:none;}
+.cat-add-l1-row input:focus,.acct-add-l1-row input:focus{border-color:var(--primary);}
+.cat-add-l1-row button,.acct-add-l1-row button{padding:0 16px;background:var(--primary);color:#fff;border-radius:10px;font-size:14px;}
+.modal-mask,.confirm-mask{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-mask.show,.confirm-mask.show{opacity:1;pointer-events:auto;}
+.modal-box,.confirm-box{background:var(--card);border-radius:14px;padding:20px;width:88%;max-width:380px;transform:scale(.9);transition:transform .2s;max-height:85vh;overflow-y:auto;}
+.modal-mask.show .modal-box,.confirm-mask.show .confirm-box{transform:scale(1);}
+.modal-box h3{font-size:16px;margin-bottom:14px;text-align:center;}
+.modal-box .field{margin-bottom:12px;}
+.modal-box .btns,.confirm-box .btns{display:flex;gap:10px;margin-top:6px;}
+.modal-box .btns .btn,.confirm-box .btns .btn{flex:1;}
+.modal-box .switch-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;}
+.modal-box .switch-row .lbl{font-size:14px;}
+.modal-box .switch{width:42px;height:24px;border-radius:12px;background:var(--border);position:relative;transition:background .2s;cursor:pointer;}
+.modal-box .switch.on{background:var(--asset);}
+.modal-box .switch::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:2px;left:2px;transition:left .2s;}
+.modal-box .switch.on::after{left:20px;}
+.confirm-box .msg{font-size:14px;margin-bottom:16px;text-align:center;white-space:pre-line;}
+.stat-tabs{display:flex;background:var(--input-bg);border-radius:10px;padding:3px;margin-bottom:12px;}
+.stat-tabs button{flex:1;padding:8px;border-radius:8px;font-size:13px;color:var(--text-sub);transition:all .2s;}
+.stat-tabs button.active{background:var(--primary);color:#fff;}
+.stat-time-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;}
+.stat-time-bar .quick{display:flex;gap:6px;flex:1;}
+.stat-time-bar .quick button{padding:6px 10px;border-radius:8px;font-size:12px;background:var(--input-bg);color:var(--text-sub);}
+.stat-time-bar .quick button.active{background:var(--primary);color:#fff;}
+.stat-time-bar input{flex:1;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:12px;}
+.stat-sub-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px;}
+.stat-sub-tabs button{flex:0 0 auto;padding:6px 12px;border-radius:16px;font-size:12px;background:var(--input-bg);color:var(--text-sub);white-space:nowrap;}
+.stat-sub-tabs button.active{background:var(--primary);color:#fff;}
+.chart-card{margin-bottom:14px;}
+.chart-card .chart-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.chart-card .chart-head .ttl{font-size:14px;font-weight:600;}
+.chart-card .total{font-size:13px;color:var(--text-sub);margin-bottom:8px;}
+.chart-card .total b{color:var(--text);font-weight:600;}
+.drill-back{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--primary);margin-bottom:8px;cursor:pointer;padding:4px 8px;background:var(--input-bg);border-radius:6px;}
+.backup-card h3{font-size:15px;margin-bottom:6px;}
+.backup-card p{font-size:13px;color:var(--text-sub);margin-bottom:12px;line-height:1.6;}
+.backup-actions{display:flex;flex-direction:column;gap:10px;}
+.data-stat{font-size:13px;color:var(--text-sub);background:var(--input-bg);padding:10px 12px;border-radius:10px;margin-top:14px;line-height:1.8;}
+.data-stat b{color:var(--text);font-weight:600;}
+input[type=file]{display:none;}
+.toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);background:rgba(0,0,0,.8);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:999;opacity:0;pointer-events:none;transition:all .2s;max-width:80%;text-align:center;}
+.toast.show{opacity:1;transform:translate(-50%,-50%) scale(1);}
+.budget-total-card{background:linear-gradient(135deg,var(--asset),#3dd6cf);color:#fff;border-radius:14px;padding:16px;margin-bottom:14px;}
+.budget-total-card .lbl{font-size:12px;opacity:.85;}
+.budget-total-card .val{font-size:24px;font-weight:700;margin:4px 0 10px;}
+.budget-total-card .val::before{content:'¥';font-size:14px;margin-right:2px;}
+.budget-progress{height:8px;background:rgba(255,255,255,.25);border-radius:4px;overflow:hidden;}
+.budget-progress .bar{height:100%;background:#fff;border-radius:4px;transition:width .3s;}
+.budget-total-card .pct{font-size:12px;margin-top:6px;opacity:.9;}
+.budget-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);}
+.budget-item:last-child{border-bottom:none;}
+.budget-item .left{flex:1;}
+.budget-item .left .n{font-size:14px;font-weight:500;}
+.budget-item .left .bar-wrap{height:6px;background:var(--input-bg);border-radius:3px;margin-top:6px;overflow:hidden;width:100%;}
+.budget-item .left .bar-wrap .bar{height:100%;border-radius:3px;}
+.budget-item .right{text-align:right;flex-shrink:0;margin-left:10px;}
+.budget-item .right .used{font-size:13px;font-weight:600;}
+.budget-item .right .budget{font-size:11px;color:var(--text-sub);}
+.ledger-item{display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--input-bg);border-radius:10px;margin-bottom:8px;}
+.ledger-item .name{font-size:14px;font-weight:500;display:flex;align-items:center;gap:6px;}
+.ledger-item .ops{display:flex;gap:4px;}
+.ledger-item .op{font-size:12px;padding:4px 8px;border-radius:6px;background:var(--card);color:var(--text-sub);}
+.ledger-item .op.edit{color:var(--primary);}
+.ledger-item .op.del{color:var(--expense);}
+.ledger-item.active{border:2px solid var(--primary);}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <h1 id="pageTitle">私人记账本</h1>
+    <button class="back-btn" id="backBtn">‹</button>
+    <button class="theme-btn" id="themeBtn" title="切换主题">🌙</button>
+  </header>
+  <main class="app-content">
+    <section id="page-home" class="page active">
+      <div class="summary-card">
+        <div class="month-label" id="homeMonth">本月结余</div>
+        <div class="balance" id="homeBalance">0.00</div>
+        <div class="row">
+          <div class="item"><div class="lbl">本月收入</div><div class="val" id="homeIncome">0.00</div></div>
+          <div class="item"><div class="lbl">本月支出</div><div class="val" id="homeExpense">0.00</div></div>
+        </div>
+        <button class="report-btn" id="goReportBtn">查看完整报表 ›</button>
+      </div>
+      <div class="card assets-card">
+        <div class="section-title"><span>账户余额</span><span class="sub link" id="homeAssetsMore">管理 ›</span></div>
+        <div class="assets-total"><span class="lbl">净资产（资产-负债）</span><span class="val" id="homeAssetsTotal">0.00</span></div>
+        <div class="assets-list" id="homeAssetsList"></div>
+      </div>
+      <div class="card">
+        <div class="section-title">
+          <span>本月支出分布</span>
+          <span class="chart-toggle" id="homePieToggle"><button class="active" data-type="pie">饼图</button><button data-type="bar">条形</button></span>
+        </div>
+        <div id="homeChartWrap"></div>
+      </div>
+      <div class="card">
+        <div class="section-title"><span>最近账单</span><span class="sub link" id="homeRecentMore">查看全部 ›</span></div>
+        <div id="homeRecent"></div>
+      </div>
+    </section>
+    <section id="page-add" class="page">
+      <div class="card">
+        <div class="type-switch" id="typeSwitch">
+          <button class="active expense" data-type="expense">支出</button>
+          <button data-type="income" class="income">收入</button>
+          <button data-type="transfer" class="transfer">转账</button>
+        </div>
+        <div class="field"><label>金额</label><input type="number" id="amountInput" class="amount-input expense" placeholder="0.00" step="0.01" inputmode="decimal"></div>
+        <div class="field" id="acctPairField" style="display:none;">
+          <label>转账：从源账户 → 目标账户</label>
+          <div class="acct-pair"><select id="fromAccountSelect"></select><span class="arrow">→</span><select id="toAccountSelect"></select></div>
+        </div>
+        <div class="field" id="accountField"><label>归属账户</label><select id="accountSelect"></select></div>
+        <div class="field" id="categoryField"><label>分类（一级 → 二级）</label><div class="cat-cascade"><select id="categoryL1"></select><select id="categoryL2"></select></div></div>
+        <div class="field" id="merchantField"><label>商家（可选）</label><div class="datalist-input"><input type="text" id="merchantInput" placeholder="如：永辉超市" autocomplete="off"><div class="suggest" id="merchantSuggest"></div></div></div>
+        <div class="field" id="projectField"><label>项目标签（可选）</label><div class="datalist-input"><input type="text" id="projectInput" placeholder="如：家庭日常" autocomplete="off"><div class="suggest" id="projectSuggest"></div></div></div>
+        <div class="field"><label>标签（按回车添加）</label><div class="tag-input-wrap" id="tagWrap"><input type="text" id="tagInput" placeholder="输入标签后回车"></div></div>
+        <div class="field"><label>日期</label><input type="date" id="dateInput"></div>
+        <div class="field"><label>备注</label><textarea id="remarkInput" placeholder="可选，写点说明..."></textarea></div>
+        <div class="form-actions" id="addActions"><button class="btn btn-primary" id="saveBtn">保存账单</button></div>
+      </div>
+    </section>
+    <section id="page-list" class="page">
+      <div class="card">
+        <div class="filter-bar">
+          <input type="text" id="searchInput" placeholder="🔍 搜索备注/分类/商家/项目">
+          <input type="date" id="filterStart"><input type="date" id="filterEnd">
+        </div>
+        <div class="filter-bar">
+          <select id="filterType"><option value="">全部类型</option><option value="expense">支出</option><option value="income">收入</option><option value="transfer">转账</option></select>
+          <select id="filterAccount"></select><select id="filterL1"></select><select id="filterL2"></select>
+        </div>
+        <div class="filter-bar">
+          <select id="filterMerchant"></select><select id="filterProject"></select>
+          <button class="btn btn-ghost" id="clearFilter">重置</button>
+        </div>
+        <div id="billList"></div>
+      </div>
+    </section>
+    <section id="page-stats" class="page">
+      <div class="stat-tabs" id="statTabs">
+        <button class="active" data-tab="expense">支出</button>
+        <button data-tab="income">收入</button>
+        <button data-tab="asset">资产</button>
+        <button data-tab="monthly">月报</button>
+        <button data-tab="yearly">年度</button>
+      </div>
+      <div class="stat-time-bar"><div class="quick" id="statQuickTime">
+        <button class="active" data-range="thisMonth">本月</button>
+        <button data-range="lastMonth">上月</button>
+        <button data-range="last3">近3月</button>
+        <button data-range="thisYear">本年</button>
+        <button data-range="lastYear">去年</button>
+      </div></div>
+      <div class="stat-time-bar"><input type="date" id="statStart"><input type="date" id="statEnd"></div>
+      <div id="statContent"></div>
+    </section>
+    <section id="page-accounts" class="page">
+      <!-- 顶部净资产横幅 -->
+      <div class="acct-banner" id="acctBanner">
+        <div class="acct-banner-bg" id="acctBannerBg"></div>
+        <div class="acct-banner-inner">
+          <div class="acct-banner-top">
+            <span class="lbl">净资产</span>
+            <div class="acct-banner-actions">
+              <button class="banner-btn" id="acctAddBtn" title="新增账户">+</button>
+              <button class="banner-btn" id="acctMoreBtn" title="更多">⋯</button>
+            </div>
+          </div>
+          <div class="acct-banner-amt">
+            <span class="amt" id="acctNetAmount">0.00</span>
+            <button class="eye-btn" id="acctEyeBtn" title="隐藏/显示金额">👁</button>
+          </div>
+          <div class="acct-banner-sub">
+            <span>资产 <span id="acctAssetAmount">0.00</span></span>
+            <span class="sep">|</span>
+            <span>负债 <span id="acctLiabilityAmount">0.00</span></span>
+          </div>
+        </div>
+        <div class="acct-banner-dots" id="acctBannerDots"></div>
+      </div>
+      <!-- 更多菜单 -->
+      <div class="acct-more-menu" id="acctMoreMenu">
+        <div class="item" data-act="sort">排序方式</div>
+        <div class="item" data-act="manage-groups">管理分组</div>
+        <div class="item" data-act="export">导出账户数据</div>
+      </div>
+      <!-- 分组卡片列表 -->
+      <div id="acctGroupList"></div>
+    </section>
+    <section id="page-acctflow" class="page">
+      <div class="card">
+        <div class="section-title"><span id="acctFlowTitle">账户流水</span><span class="sub" id="acctFlowBalance"></span></div>
+        <div id="acctFlowList"></div>
+      </div>
+    </section>
+    <section id="page-categories" class="page">
+      <div class="card cat-section">
+        <h3>💰 收入分类 <span class="badge" id="incomeCatCount"></span></h3>
+        <div class="cat-search"><input type="text" id="incomeCatSearch" placeholder="🔍 搜索一级或二级分类名"></div>
+        <div id="incomeCatList"></div>
+        <div class="cat-add-l1-row"><input type="text" id="newIncomeL1" placeholder="新增一级分类名称"><button id="addIncomeL1">+ 添加</button></div>
+      </div>
+      <div class="card cat-section">
+        <h3>🛍 支出分类 <span class="badge" id="expenseCatCount"></span></h3>
+        <div class="cat-search"><input type="text" id="expenseCatSearch" placeholder="🔍 搜索一级或二级分类名"></div>
+        <div id="expenseCatList"></div>
+        <div class="cat-add-l1-row"><input type="text" id="newExpenseL1" placeholder="新增一级分类名称"><button id="addExpenseL1">+ 添加</button></div>
+      </div>
+    </section>
+    <section id="page-budget" class="page">
+      <div class="budget-total-card" id="budgetTotalCard"></div>
+      <div class="card">
+        <div class="section-title"><span>各分类预算执行</span><span class="sub link" id="editBudgetLink">编辑预算</span></div>
+        <div id="budgetList"></div>
+      </div>
+    </section>
+    <section id="page-ledgers" class="page">
+      <div class="card">
+        <div class="section-title"><span>📒 账本管理</span><span class="sub link" id="addLedgerLink">+ 新建账本</span></div>
+        <div id="ledgerList"></div>
+      </div>
+    </section>
+    <section id="page-backup" class="page">
+      <div class="card backup-card">
+        <h3>📤 导出备份</h3>
+        <p>将所有账本数据(账单、分类、账户、预算)导出为 JSON 文件保存到本地。建议定期备份。</p>
+        <div class="backup-actions"><button class="btn btn-primary" id="exportBtn">导出 JSON 备份文件</button></div>
+      </div>
+      <div class="card backup-card">
+        <h3>📥 导入恢复</h3>
+        <p>选择 JSON 备份文件恢复数据。<b style="color:var(--expense);">注意：导入会覆盖当前所有数据。</b></p>
+        <div class="backup-actions">
+          <button class="btn btn-ghost" id="importBtn">选择 JSON 文件导入</button>
+          <input type="file" id="importFile" accept=".json,application/json">
+        </div>
+      </div>
+      <div class="card backup-card"><h3>📊 数据统计</h3><div class="data-stat" id="dataStat">加载中...</div></div>
+      <div class="card backup-card">
+        <h3>⚠️ 清空数据</h3>
+        <p>清空当前账本所有账单记录(分类、账户、预算保留)。</p>
+        <div class="backup-actions"><button class="btn btn-danger" id="clearBtn">清空当前账单</button></div>
+      </div>
+    </section>
+  </main>
+  <nav class="app-nav">
+    <button class="nav-btn active" data-page="home"><span class="icon">🏠</span><span>首页</span></button>
+    <button class="nav-btn" data-page="add"><span class="icon">➕</span><span>记一笔</span></button>
+    <button class="nav-btn" data-page="list"><span class="icon">📋</span><span>账单</span></button>
+    <button class="nav-btn" data-page="stats"><span class="icon">📊</span><span>统计</span></button>
+    <button class="nav-btn" data-page="accounts"><span class="icon">🏦</span><span>账户</span></button>
+    <button class="nav-btn" data-page="categories"><span class="icon">🏷️</span><span>分类</span></button>
+    <button class="nav-btn" data-page="backup"><span class="icon">⚙️</span><span>备份</span></button>
+  </nav>
+</div>
+<div class="toast" id="toast"></div>
+<div class="confirm-mask" id="confirmMask"><div class="confirm-box"><div class="msg" id="confirmMsg">确认操作？</div><div class="btns"><button class="btn btn-ghost" id="confirmCancel">取消</button><button class="btn btn-primary" id="confirmOk">确定</button></div></div></div>
+<div class="modal-mask" id="modalMask"><div class="modal-box" id="modalBox"></div></div>
+<script src="app.js"></script>
+<script>
+// 注册 Service Worker，支持离线访问和添加到主屏幕
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
